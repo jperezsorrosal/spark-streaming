@@ -9,7 +9,7 @@ import twitter4j.{StallWarning, Status, StatusDeletionNotice, StatusListener, Tw
 import scala.concurrent.{Future, Promise}
 import scala.io.Source
 
-class TwitterReceiver () extends Receiver[Status](StorageLevel.MEMORY_ONLY) {
+class TwitterReceiver (language: String = "en") extends Receiver[Status](StorageLevel.MEMORY_ONLY) {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -35,7 +35,7 @@ class TwitterReceiver () extends Receiver[Status](StorageLevel.MEMORY_ONLY) {
     val twitterStream = new TwitterStreamFactory("src/main/resources/twitter4j.properties")
       .getInstance()
         .addListener(simpleStatusListener)
-        .sample("es") // call the twitter sample endpoint for English tweets
+        .sample(language) // call the twitter sample endpoint for English tweets
 
     socketPromise.success(twitterStream)
   }

@@ -7,7 +7,7 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.dstream.{DStream, ReceiverInputDStream}
 import org.apache.spark.streaming.receiver.Receiver
-import org.apache.spark.streaming.{Seconds, StreamingContext}
+import org.apache.spark.streaming.{Minutes, Seconds, StreamingContext}
 import twitter4j.Status
 
 import scala.concurrent.{Future, Promise}
@@ -43,8 +43,35 @@ object TwitterProject {
     ssc.awaitTermination()
   }
 
+  def getAverageTwitterLength(): DStream[Double] = {
+    val tweets = ssc.receiverStream(new TwitterReceiver)
+
+    val averages: DStream[Double] = tweets
+      .map(status => (status.getText.length, 1))
+      .reduceByWindow((t1, t2) => (t1._1 + t2._1, t1._2 + t2._2), Seconds(5), Seconds(5))
+      .map { case (tweetLengthSum, tweetCount) => tweetLengthSum * 1.0 / tweetCount }
+
+    averages
+  }
+
+  def mostPopularHashTags(): DStream[(String, Int)] = {
+    val tweets = ssc.receiverStream(new TwitterReceiver)
+    ssc.checkpoint("checkpoints")
+
+    tweets
+      .flatMap( status => status.getText.split(" "))
+      .filter(_.startsWith("#"))
+      .map( hashtag => (hashtag.toLowerCase, 1))
+      .reduceByKeyAndWindow( (x, y) => x + y, (x, y) => x - y, Seconds(60), Seconds(10) )
+      .transform(rdd => rdd.sortBy{ case (hashtag, count) => - count})
+  }
+
+
   def main(args: Array[String]): Unit = {
-    readTwitter()
+    //readTwitter()
+    mostPopularHashTags().print()
+    ssc.start()
+    ssc.awaitTermination()
 
   }
 }
