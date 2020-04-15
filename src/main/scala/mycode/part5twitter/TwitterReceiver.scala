@@ -1,5 +1,6 @@
 package mycode.part5twitter
 
+import java.io.{OutputStream, PrintStream}
 import java.net.Socket
 
 import org.apache.spark.storage.StorageLevel
@@ -30,8 +31,23 @@ class TwitterReceiver (language: String = "en") extends Receiver[Status](Storage
     override def onException(ex: Exception): Unit = ex.printStackTrace()
   }
 
+  /*
+    we want to ignore the output of the NLP library
+    System error redirects the output to this PrintStream that does nothing
+    System error will call this methods write that will do nothing
+   */
+  private def redirectSystemError() = System.setErr(new PrintStream(new OutputStream {
+    override def write(b: Int): Unit = () // ignore
+    override def write(b: Array[Byte]): Unit = () // ignore
+    override def write(b: Array[Byte], off: Int, len: Int): Unit = () // ignore
+  }))
+
+
   // called asynchronously
   override def onStart(): Unit = {
+
+      redirectSystemError()
+
     val twitterStream = new TwitterStreamFactory("src/main/resources/twitter4j.properties")
       .getInstance()
         .addListener(simpleStatusListener)

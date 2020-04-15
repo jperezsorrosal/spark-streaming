@@ -66,12 +66,29 @@ object TwitterProject {
       .transform(rdd => rdd.sortBy{ case (hashtag, count) => - count})
   }
 
+  def readTwitterWithSentiment() = {
+    val twitterStream: DStream[Status] = ssc.receiverStream(new TwitterReceiver)
+    val tweets: DStream[String] = twitterStream.map { status =>
+      val username = status.getUser.getName
+      val followersCount = status.getUser.getFollowersCount
+      val text = status.getText
+      val sentiment = SentimentAnalysisUtils.detectSentiment(text)
+
+      s"User: $username [$followersCount followers] says [$sentiment]: ${text}"
+    }
+
+    tweets.print()
+    ssc.start()
+    ssc.awaitTermination()
+  }
 
   def main(args: Array[String]): Unit = {
     //readTwitter()
-    mostPopularHashTags().print()
-    ssc.start()
-    ssc.awaitTermination()
+//    mostPopularHashTags().print()
+//    ssc.start()
+//    ssc.awaitTermination()
+
+    readTwitterWithSentiment()
 
   }
 }
